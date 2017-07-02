@@ -1,7 +1,7 @@
 //var Timer timer = null
 val String filename = "astro.rules"
 
-/* -------------  TAG und NACHT --------------------
+/* -------------  TAG und NACHT -------------
 */
 
 rule "Tag und Nacht"
