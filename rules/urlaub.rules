@@ -1,0 +1,82 @@
+val String filename = "urlaub.rules"
+var String conOpened = ""
+
+rule "Urlaubsmodus ein / aus"
+when
+	Item AutoHoliday changed 
+	
+then
+	if(AutoHoliday.state == ON){
+		logInfo(filename, "Urlaubsmodus ein")
+		//pushover("Urlaubsmodus ein")
+	}
+	if(AutoHoliday.state == OFF){
+		logInfo(filename, "Urlaubsmodus aus")
+		//pushover("Urlaubsmodus aus")
+	}
+end
+
+
+rule "Urlaubsmodus / Licht zufällig einschalten"
+when
+	Time cron "0 40 17 * * ?" or
+	Time cron "0 36 18 * * ?" or
+	Time cron "0 42 19 * * ?" or
+	Time cron "0 12 22 * * ?" or
+	Time cron "0 48 22 * * ?" or
+	Time cron "0 30 23 * * ?"
+then
+	if(AutoHoliday.state == ON){
+		EGWohnzimmerLichtEsstisch.sendCommand (if(Math::random > 0.5) ON else OFF)
+		EGFlurLicht.sendCommand (if(Math::random > 0.3) ON else OFF)
+		EGWohnzimmerLightStrip.sendCommand (if(Math::random > 0.5) ON else OFF)
+		logInfo(filename, "Licht Wohnzimmer " + EGWohnzimmerLichtEsstisch.state)
+		logInfo(filename, "Licht Flur " + EGFlurLicht.state)
+		logInfo(filename, "LightStripes " + EGWohnzimmerLightStrip.state)
+		pushover("Licht Wohnzimmer " + EGWohnzimmerLichtEsstisch.state)
+		//sendTelegram("MyopenHABbot","Licht Wohnzimmer " + EGWohnzimmerLichtEsstisch.state)
+		pushover("Licht Flur " + EGFlurLicht.state)
+		pushover("LightStripes " + EGWohnzimmerLightStrip.state)
+		//sendTelegram("MyopenHABbot","Licht Flur " + EGFlurLicht.state)
+	}
+end
+
+rule "Urlaubsmodus / Licht ausschalten"
+when
+	Time cron "0 45 23 * * ?"
+then
+	if(AutoHoliday.state == ON){
+		EGWohnzimmerLichtEsstisch.sendCommand(OFF)
+		EGWohnzimmerLightStrip.sendCommand(OFF)
+		logInfo(filename, "Licht Wohnzimmer " + EGWohnzimmerLichtEsstisch.state)
+	}
+end
+
+/* 
+rule "Urlaubsmodus / Alle Lichter ausschalten"
+when
+	Time cron "0 50 23 * * ?"
+then
+	if(AutoHoliday.state == ON){
+		gErdgeschossLicht?.allMembers.forEach(light|
+			light.postUpdate(OFF)
+			)
+	}
+end
+*/
+
+rule "Urlaubsmodus / Tür-Fensterkontakte"
+when
+	Item gAllContacts received update or
+   	System started
+
+then
+	if ((AutoHoliday.state == ON) && (gAllContacts.state == OPEN)) {
+	gAllContacts?.allMembers.filter(s | s.state == OPEN).forEach(contact | conOpened = conOpened + contact.name)
+	var String sensorState = transform("MAP","devices.map",conOpened)
+	logInfo(filename,""  + sensorState + " wurde geöffnet")
+	pushover("Tür-Fensterkontakt " + sensorState + " wurde geöffnet")
+	//sendTelegram("MyopenHABbot","Tür-Fensterkontakt " + sensorState + " wurde geöffnet")
+	conOpened = ""
+	}
+end

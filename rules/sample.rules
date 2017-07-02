@@ -1,0 +1,418 @@
+//-------------  ROLLÄDEN --------------------
+import org.openhab.core.library.types.*
+var int zaehler = (NumberItem.state as DecimalType).intValue
+
+rule "Wartung: Batterie Check"
+when
+
+	Time cron "10 45 9,17 * * ?"
+then
+   logInfo(filename,"Batterie Check (cron)","Starte Batterie Check")
+   gSysBattery?.members.forEach[battery | 
+      if (battery.state == true){
+         BatteryStateMsg = BatteryStateMsg + battery.name + " " + battery.state.toString()
+      }
+      logInfo(filename, "Wartung - Batterie-Check OK:", battery.name + " " + battery.state)
+   ]
+   if (BatteryStateMsg != null){
+      pushover("Warnung. Gerät mit schwacher Batterie: " + BatteryStateMsg + "")
+      BatteryStateMsg = null
+   }
+end
+
+rule "Stromverbrauch"
+when
+	Item OGStrom_Zaehler received update
+then
+	var Number Aktuell_Zaehler = OGStrom_Zaehler.state as DecimalType
+
+	// Jahresverbrauch
+	if (OGStrom_Zaehler_Gesamt.deltaSince(now.minusYears(1)) != NULL) {
+	OGStrom_Verbrauch_Laufendes_Kalenderjahr.postUpdate(OGStrom_Zaehler_Gesamt.deltaSince(now.minusYears(1)))
+	}
+	
+	// Monatsverbrauch
+	if (OGStrom_Zaehler_Gesamt.deltaSince(now.minusMonths(1)) != NULL) {
+	OGStrom_Verbrauch_Laufender_Monat.postUpdate(OGStrom_Zaehler_Gesamt.deltaSince(now.minusMonths(1)))
+	}
+	
+	// Wochenverbrauch
+	if (OGStrom_Zaehler_Gesamt.deltaSince(now.minusWeeks(1)) != NULL) {
+	OGStrom_Verbrauch_Laufend_Woche.postUpdate(OGStrom_Zaehler_Gesamt.deltaSince(now.minusWeeks(1)))
+	}
+
+	// Tagesverbrauch
+	OGStrom_Aktueller_Tagesverbrauch.postUpdate(Aktuell_Zaehler - OGStrom_Zaehler.deltaSince(now.withTimeAtStartOfDay).state as DecimalType)	
+	
+	// Verbrauch seit letzer Ablesung
+	OGStrom_Verbrauch_Seit_Letzter_Ablesung.postUpdate (OGStrom_Zaehler_Gesamt.state as DecimalType - letzteAblesungWert)
+	
+	// aktueller Tagesverbrauch in KWh
+	OGstrom_Aktueller_Verbrauch_Kw.postUpdate (OGStrom_Aktueller_Verbrauch_W.state as DecimalType / 1000)
+	//logInfo("StromRules:", "States:" + OGstrom_Aktueller_Verbrauch_Kw.state)
+	
+	//Gesamtzählerstand (HT/NT)
+	var Number gesamtZaehlerstand = (Aktuell_Zaehler /1000) + letzteAblesungWert
+	OGStrom_Zaehler_Gesamt.postUpdate (gesamtZaehlerstand)
+	
+		/*
+	var Number aktuellerZaehler = OGStrom_Zaehler.state as DecimalType
+
+	//Gesamtzählerstand (HT/NT)
+	var Number gesamtZaehlerstand = (aktuellerZaehler /1000) + letzteAblesungWert
+	OGStrom_Zaehler_Gesamt.postUpdate(gesamtZaehlerstand)
+
+	// Verbrauch seit letzer Ablesung
+	var Number verbrauchLetzterAblesungDiff = (OGStrom_Zaehler_Gesamt.state as DecimalType - letzteAblesungWert)
+	OGStrom_Verbrauch_Seit_Letzter_Ablesung.postUpdate(verbrauchLetzterAblesungDiff)
+
+	// aktueller Verbrauch in KWh
+	OGstrom_Aktueller_Verbrauch_Kw.postUpdate(OGStrom_Aktueller_Verbrauch_W.state as DecimalType / 1000)
+	*/
+	
+	
+	//Zählerüberlauf
+	//OGStrom_Energy_Counter.postUpdate = OGStrom_Zaehler.state as DecimalType
+	//if ((OGStrom_Zaehler.state as DecimalType + 0.001) < OGStrom_Energy_Counter.state as DecimalType) {
+	//	OGStrom_Energy_Counter.postUpdate (OGStrom_Zaehler.state as DecimalType + 838.8607)
+	//} 
+end
+
+
+/* 
+rule "Rolläden Erdgeschoss runter"
+when
+        Item Sonnenuntergang_Event_After15_back received update ON
+then
+   if (Jahreszeit.state=="Autumn" || Jahreszeit.state=="Winter"){
+   		logInfo("AstroRules:Rolläden Erdgeschoss runter", "Es ist " + Jahreszeit.state)
+   		if (EGWohnzimmerRolladenTerrasse.state!=100 || EGWohnzimmerRolladenSofa.state!=100 || EGKinderzimmerRolladenRechts.state!=100) {
+    	logInfo("AstroRules:Rolläden Erdgeschoss runter", "Rolläden Erdgeschoss runter")
+    	  		sendCommand(EGWohnzimmerRolladenTerrasse, DOWN)
+	      		sendCommand(EGWohnzimmerRolladenSofa, DOWN)
+	      		sendCommand(EGSchlafzimmerRolladenTuer, DOWN)
+	      		sendCommand(EGSchlafzimmerRolladenTerrasse, DOWN)
+	      		sendCommand(EGKinderzimmerRolladenLinks, DOWN)
+	      		sendCommand(EGKinderzimmerRolladenRechts, DOWN)
+	      		sendCommand(EGKuecheRolladenFenster, DOWN)
+	      	//	sendCommand(EGBadezimmerRolladenTerrasse, DOWN)
+	     }
+   		 if (now.getHourOfDay >= 21 && now.getMinuteOfHour >=15 && EGWohnzimmerTuersensor.state == CLOSED){
+      			sendCommand(EGWohnzimmerRolladenTuer, DOWN)
+   		 } else {
+      			createTimer (now.plusMinutes(5))[|
+         		postUpdate (Sonnenuntergang_Event_After15_back, ON)] 
+   		 } 		
+   }
+
+   if ((Jahreszeit.state=="Spring" || Jahreszeit.state=="Summer") && now.getHourOfDay >= 22 && now.getMinuteOfHour >=15){
+   		logInfo("AstroRules:Rolläden Erdgeschoss runter", "Es ist " + Jahreszeit.state)
+   		if (EGWohnzimmerRolladenTerrasse.state!=100 || EGWohnzimmerRolladenSofa.state!=100 || EGSchlafzimmerRolladenTerrasse.state!=100) {
+    	logInfo("AstroRules:Rolläden Erdgeschoss runter", "Rolläden Erdgeschoss runter") 
+    	  		sendCommand(EGWohnzimmerRolladenTerrasse, DOWN)
+	      		sendCommand(EGWohnzimmerRolladenSofa, DOWN)
+				sendCommand(EGSchlafzimmerRolladenTuer, DOWN)
+	      		sendCommand(EGSchlafzimmerRolladenTerrasse, DOWN)
+	      		sendCommand(EGKinderzimmerRolladenLinks, DOWN)
+	      		sendCommand(EGKinderzimmerRolladenRechts, DOWN)
+	      		sendCommand(EGKuecheRolladenFenster, DOWN)
+	      	//	sendCommand(EGBadezimmerRolladenTerrasse, DOWN)	      
+   		}
+   		if (now.getHourOfDay >= 23 && now.getMinuteOfHour >=00 && EGWohnzimmerTuersensor.state == CLOSED){
+      			sendCommand(EGWohnzimmerRolladenTuer, DOWN)
+   		 } else {
+      			createTimer (now.plusMinutes(5))[|
+         		postUpdate (Sonnenuntergang_Event_After15_back, ON)] 
+   }
+   
+  }
+end
+*/
+
+
+/* 
+rule "Rolläden Hausrückseite runter"
+when
+        Item Sonnenuntergang_Event_After30_back received update ON 
+then
+   if (EGWohnzimmerRolladenTerrasse.state!=100 || EGWohnzimmerRolladenSofa.state!=100) {
+      sendCommand(EGWohnzimmerRolladenTerrasse, DOWN)
+      sendCommand(EGWohnzimmerRolladenSofa, DOWN)
+   }
+
+   if (now.getHourOfDay >= 21 && now.getMinuteOfHour >=15){
+      sendCommand(EGWohnzimmerRolladenTuer, DOWN)
+   } else {
+      createTimer (now.plusMinutes(5))[|
+         postUpdate (Sonnenuntergang_Event_After30_back, ON)] 
+   }
+end
+*/
+
+/* 
+rule "Rolläden Hausrückseite rauf"
+when
+        Item Sonnenaufgang_Event_before30_back received update ON
+then
+    	
+    	if (now.getHourOfDay >= 7 && now.getMinuteOfHour >=15){ 
+    	sendCommand(EGWohnzimmerRolladenTuer, UP)
+    	sendCommand(EGWohnzimmerRolladenTerrasse, UP)
+    	sendCommand(EGWohnzimmerRolladenSofa, UP)
+    	}
+    	else{
+  		createTimer (now.plusMinutes(2))[|
+  			postUpdate (Sonnenaufgang_Event_before30_back, ON)] 
+    		
+    	}
+end
+*/
+
+//-------------  GARAGE --------------------
+
+/*
+ rule "Garage ist länger als 10 Minuten geöffnet (19:00 - 07:00)"
+    when
+        Item GarageTorsensor changed from CLOSED to OPEN
+    then
+        if	(now.getHourOfDay >= 19 || now.getHourOfDay <=7){
+            if	(GarageTorsensor.state==OPEN) {
+				logInfo("GarageTorsensor", "Garagentor ist "+ GarageTorsensor.state)
+	        	timer = createTimer(now.plusMinutes(10)) [|
+	    			if	(GarageTorsensor.state==OPEN) {
+	        			var String sensorState = transform("MAP","Kontakt.map",GarageTorsensor.state.toString)
+	        			executeCommandLine ("/opt/yowsup/yowsup-cli@@demos@@-c@@/opt/yowsup/yowsup.config@@-s@@4916090488979-1440832510@g.us@@\"Garagentor ist " + sensorState + "\"")    
+	    			}
+	        	]
+        	}
+       	}
+         else {
+            if(timer!=null) {
+                timer.cancel
+                timer = null
+            }
+        }
+ end
+
+        // create a timer to execute the alarm at the specified time
+        masterAlarmTime = createTimer(alarmTime) [| 
+            if (Alarm_Master.state == ON && Holiday.state == OFF && now.getDayOfWeek() < 6) 
+                Alarm_MasterEvent.sendCommand(ON)
+*/
+/* 
+ 
+ rule "Garage ist länger als 5 Minuten geöffnet (18:00 - 08:00)"
+ 	when
+		Time cron "0 0/5 18-8 * * ?"
+	then
+		if (GarageTorsensor.state == OPEN){
+			var String sensorState = transform("MAP","Kontakt.map",GarageTorsensor.state.toString)
+	        logInfo("GarageRules:Gargentor", "Garage ist länger als 5 Minuten geöffnet")
+	        //sendMail("o.kretzschmar@t-online.de;stkretzschmar@t-online.de", "Garagentor ist " + sensorState, "Garagentor ist " + sensorState)
+	        //executeCommandLine ("/usr/local/bin/yowsup-cli@@demos@@-c@@/opt/yowsup/yowsup.config@@-s@@4916090488979-1440832510@g.us@@\"Garagentor ist " + sensorState + "\"@@-M")
+	        //sendTelegram("MyopenHABbot","Garagentor ist " + sensorState)
+	        pushover("Garagentor ist " + sensorState)
+		}
+ end
+ 
+ */
+//-------------  LICHT --------------------
+/* 
+rule "Licht Vorgarten an"
+    when
+    	Item Sonnenuntergang_Event_After60 received update ON
+    then
+        logInfo("AstroRules:Licht Vorgarten an", "Licht Vorgarten an")
+        sendCommand(EGEingangSchalterVorgarten, ON)
+end
+*/
+
+gRollershutters.members.forEach(rs |
+    val nameParts = rs.name.split("-")
+    val windowName = nameParts[0] + "-fenster-" + namedParts[2]
+    if(gWindows.members.filter(w | w.name == windowName).head.state != OPEN){
+        rs.postUpdate(DOWN)
+    }
+)
+
+// gStateON is a dynamic group that holds all Items in state ON.
+// The group gets refreshed whenever the gAll group gets an update, 
+// i.e. whenever an item changes
+
+rule "What's on - refresh / Dynamic Group"
+    when 
+        Item sRefreshON received update 
+    then
+        logDebug("rules","Group gStateON about to be refreshed")
+        gStateON.members.forEach[ item | gStateON.removeMember(item)]
+        gAll.allMembers.filter(s | s.state == ON).forEach[ item | gStateON.addMember(item)]
+    end
+
+
+/*
+RULE "window open rule"
+WHEN
+    co_WINDOW changed to OPEN
+
+THEN
+    WIN_OPEN_TIMER=createTimer(now.plusSeconds(300)) [ |
+                   sendCommand(sw_THERMOSTAT, OFF)  ]
+END
+That will set up the window open too long, shut off thermostat logic.
+
+Now let's deal with the window closing under either condition (before or after the 5 minutes expires)
+
+RULE: "Window closing"
+WHEN
+    co_WINDOW changed to CLOSED
+THEN
+    if WIN_OPEN_TIMER.hasTerminated() {
+         //window open for longer than five minutes so thermostat is OFF
+         WIN_OPEN_TIMER=null
+         sendCommand(sw_THERMOSTAT,ON)
+    }
+    if WIN_OPEN_TIMER !=null {
+        //window open less than five minutes, just cancel and clean up the timer
+        WIN_OPEN_TIMER.cancel()
+        WIN_OPEN_TIMER=null
+    }
+END
+ */
+ 
+ /*
+  // import the decimal type as we refer to it in a rule
+    import org.openhab.core.library.types.DecimalType
+
+    var Number counter
+
+    // setting the counter to some initial value
+    // we could have done this in the variable declaration already
+    rule Startup
+    when 
+        System started
+    then
+        counter = 0
+    end
+
+    // increase the counter at midnight
+    rule "Increase counter"
+    when
+        Time cron "0 0 0 * * ?"
+    then
+        counter = counter + 1
+    end
+
+    // tell the number of days either at noon or if a button is pressed
+    rule "Announce number of days up"
+    when
+        Time is noon or 
+        Item AnnounceButton received command ON
+    then
+        say("The system is up since " + counter + " days")
+    end
+
+    // sets the counter to the value of a received command
+    rule "Set the counter"
+    when
+        Item SetCounterItem received command
+    then
+        counter = receivedCommand as DecimalType
+    end 
+  */
+  
+
+  
+  /* -------------  Luftdruck Icon --------------------
+*/
+  /*
+rule "Luftdruck Icon"
+when 
+	Item Uedorf_Luftdruck received update
+then
+	if (Uedorf_Luftdruck.state>=0 && Uedorf_Luftdruck.state<10) {
+		Uedorf_LuftdruckIcon.postUpdate(10)
+	}
+	if (Uedorf_Luftdruck.state>=10 && Uedorf_Luftdruck.state<20) {
+		Uedorf_LuftdruckIcon.postUpdate(20)
+	}
+	if (Uedorf_Luftdruck.state>=20 && Uedorf_Luftdruck.state<30) {
+		Uedorf_LuftdruckIcon.postUpdate(30)
+	}
+	if (Uedorf_Luftdruck.state>=30 && Uedorf_Luftdruck.state<40) {
+		Uedorf_LuftdruckIcon.postUpdate(40)
+	}
+	if (Uedorf_Luftdruck.state>=40 && Uedorf_Luftdruck.state<=50) {
+		Uedorf_LuftdruckIcon.postUpdate(50)
+	}
+	if (Uedorf_Luftdruck.state>=50 && Uedorf_Luftdruck.state<=60) {
+		Uedorf_LuftdruckIcon.postUpdate(60)
+	}
+	if (Uedorf_Luftdruck.state>=60 && Uedorf_Luftdruck.state<=70) {
+		Uedorf_LuftdruckIcon.postUpdate(70)
+	}
+	if (Uedorf_Luftdruck.state>=70 && Uedorf_Luftdruck.state<=80) {
+		Uedorf_LuftdruckIcon.postUpdate(80)
+	}
+	if (Uedorf_Luftdruck.state>=80 && Uedorf_Luftdruck.state<=90) {
+		Uedorf_LuftdruckIcon.postUpdate(90)
+	}
+	if (Uedorf_Luftdruck.state>=90 && Uedorf_Luftdruck.state<=100) {
+		Uedorf_LuftdruckIcon.postUpdate(100)
+	}
+end 
+   */
+   
+   
+/* 
+rule "Init Strom"
+when
+    System started
+then
+
+    if( !(Strom_Letzter_Tagesverbrauch.state instanceof DecimalType) ) postUpdate(Strom_Letzter_Tagesverbrauch, 0 )
+
+    if( !(Strom_Aktueller_Tagesverbrauch.state instanceof DecimalType) ) postUpdate(Strom_Aktueller_Tagesverbrauch, 0 )
+
+    if( !(Strom_Aktueller_Verbrauch.state instanceof DecimalType) ) postUpdate(Strom_Aktueller_Verbrauch, 0 )
+
+    if( !(Strom_Min_Verbrauch.state instanceof DecimalType) ) postUpdate(Strom_Min_Verbrauch, 0 )
+    if( !(Strom_Max_Verbrauch.state instanceof DecimalType) ) postUpdate(Strom_Max_Verbrauch, 0 )
+end
+
+rule "Letzter Tagesstromverbrauch"
+when
+       Time cron "15 0 0 * * ?"
+then
+
+    Strom_Letzter_Tagesverbrauch.postUpdate(Strom_Zaehler.historicState(now.withTimeAtStartOfDay) as DecimalType - Strom_Zaehler.historicState(now.withTimeAtStartOfDay.toDateTime.minusMinutes(1440)) as DecimalType )
+
+    Strom_Min_Verbrauch.postUpdate(Strom_Zaehler.state as DecimalType )
+    Strom_Max_Verbrauch.postUpdate(Strom_Zaehler.state as DecimalType )
+end
+
+rule "Stromverbrauch"
+when
+       Time cron "30 0/5 * * * ?"
+then
+
+    var Number Letzter_Zaehler = Strom_Zaehler.historicState(now.minusMinutes(5)) as DecimalType
+    var Number Aktuell_Zaehler = Strom_Zaehler.state as DecimalType
+    
+    Strom_Aktueller_Tagesverbrauch.postUpdate(Aktuell_Zaehler - Strom_Zaehler.minimumSince(now.withTimeAtStartOfDay).state as DecimalType )
+    
+    var Number Aktuell = (Aktuell_Zaehler - Letzter_Zaehler) * 12 * 1000
+    
+    Strom_Aktueller_Verbrauch.postUpdate(Aktuell)
+
+    if( (Strom_Min_Verbrauch.state as DecimalType) > Aktuell){
+        
+        Strom_Min_Verbrauch.postUpdate(Aktuell)
+    }
+    
+    if( (Strom_Max_Verbrauch.state as DecimalType) < Aktuell){
+        
+        Strom_Max_Verbrauch.postUpdate(Aktuell)
+    }
+end
+*/
+ 

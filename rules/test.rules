@@ -1,0 +1,221 @@
+val String filename = "test.rules"
+//var Map states = null
+//var String conOpened = ""
+//var String BatteryStateMsg = null
+//var String conOpened = ""
+//var Number letzteAblesungWert = 561069
+/* 
+rule "Cron_DEV"
+when
+   Time cron  "0/30 * * * * ?"
+then
+   states = storeStates(EGKuecheRolladenFenster)
+   logInfo("TestRules:", "States:" + states)
+   logInfo("TestRules:", "States:" + states.get(EGKuecheRolladenFenster))
+end
+*/
+/*
+rule "Stromverbrauch"
+when
+	Item OGStrom_Zaehler received update
+then
+
+	//Gesamtzählerstand (HT/NT)
+	OGStrom_Zaehler_Gesamt.postUpdate((OGStrom_Zaehler.state as Number /1000) + letzteAblesungWert)
+
+	// Verbrauch seit letzer Ablesung
+	OGStrom_Verbrauch_Seit_Letzter_Ablesung.postUpdate(OGStrom_Zaehler_Gesamt.state as Number - letzteAblesungWert)
+
+	// aktueller Verbrauch in KWh
+	OGstrom_Aktueller_Verbrauch_Kw.postUpdate(OGStrom_Aktueller_Verbrauch_W.state as Number / 1000)
+end
+*/
+
+/*
+rule "testrule"
+when
+        Time cron  "0/30 * * * * ?"
+then
+
+	   sendTelegramPhoto("bot2", "http://192.168.1.101:88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=operator&pwd=abcd1234", "Türklingel (EG)!")
+end
+*/
+
+rule "testrule"
+when
+        Time cron  "0/30 * * * * ?"
+then
+	logInfo(filename, "Wartung - Batterien")
+	gSysBattery.members.forEach(battery | {
+			logInfo(filename, "Wartung - Batterie " + battery.label + " Type(" + battery.type + "): " + battery.state)
+			if (battery.type == "Number") {
+				if (battery.state <= 2.5) {
+					logWarn(filename, "Wartung - Batterie schwach: " + battery.label)
+					pushover("Warnung. Gerät mit schwacher Batterie: " + battery.label)
+				}
+			}
+			else if (battery.type == "Switch") {
+				if (battery.state == ON) {
+					logWarn(filename, "Wartung - Batterie schwach: " + battery.label)
+					pushover("Warnung. Gerät mit schwacher Batterie: " + battery.label)
+				}
+				if (battery.state == NULL) {
+					logWarn(filename, "Wartung - Batterie unbekannt (NULL): " + battery.label)
+					pushover("Warnung. Gerät mit leerer Batterie: " + battery.label)
+				}
+			}
+			else {
+				logError(filename, "Wartung - Batterietyp unbekannt: " + battery.label)
+				pushover("Warnung. Batterietest unbekannter Fehler: " + battery.label)
+			}
+		}
+	)
+end
+
+
+	//say("Blablabla","voicerss:deDE","sonos:PLAY1:RINCON_949F3E815F9C01400")
+
+
+
+
+/*
+rule "Türklingel (EG)"
+when
+        Item EGKlingelsensorState changed from OFF to ON
+then
+        logInfo("SchalterRules:Türklingel (EG)", "Es klingelt")
+        //pushover('Es klingelt (EG)!')
+        //Lautstärke setzen
+        gSonosDoorBellVolume?.members.forEach[sonosV |
+                logInfo("SchalterRules:Türklingel (EG)", "Setze Notify Lautstärke auf \"70\" für Sonos Member \"" + sonosV.name + "\"")
+                sonosV.sendCommand(70 as Number)
+        ]
+
+        //Sende Klingelton
+        gSonosDoorBellNotificationSound?.members.forEach[sonosS |
+                logInfo("SchalterRules:Türklingel (EG)", "Sende Klingelton \"http://192.168.1.66:8080/static/ding-dong1.mp3\" für Sonos Member \"" + sonosS.name + "\"")
+                sonosS.sendCommand("http://192.168.1.66:8080/static/ding-dong2.mp3")
+        ]
+end
+*/ 
+
+/*
+rule "testrule"
+when
+        Time cron  "0/30 * * * * ?"
+then
+        logInfo("SchalterRules:Türklingel (EG)", "Klingeln erkannt")
+        //pushover('Es klingelt!')
+        //Lautstärke setzen
+        EGWZ_Sonos_Notificationsoundvolume.sendCommand(70)
+        logDebug("SchalterRules:Türklingel (EG)", "Setze Notify Lautstärke auf \"70\" für Sonos Member \"" + EGWZ_Sonos_Notificationsoundvolume.name + "\"")
+
+end
+*/
+
+/* 
+rule "Cron_DEV"
+when
+   Time cron  "0/30 * * * * ?"
+then
+	if(AutoHoliday.state == OFF){
+	gErdgeschossRolladen?.members.forEach(rs|
+            logInfo("TestRules:", "States:" + rs.name)
+            )
+	}
+            
+    
+	//sendNotification("odinsraben@t-online.de","Hallo!")
+	//executeCommandLine ("/usr/local/bin/yowsup-cli@@demos@@-c@@/opt/yowsup/yowsup.config@@-s@@4916090488979-1440832510@g.us@@\"Licht Wohnzimmer " + EGWohnzimmerLichtEsstisch.state + "\"@@-M")
+	//closedContacts.postUpdate("geschlossen")
+	//gAllContacts?.allMembers.filter(s | s.state == OPEN).forEach(contact | conOpened = conOpened + transform("MAP","Sensoren.map",contact.name))
+	//logInfo("TestRules:", "States:" + conOpened)
+	//MOBSteffi_IFTTT.postUpdate(ON)
+	//sendTelegram("MyopenHABbot","Garage ist " + GarageTorsensorBattery.state)
+	//pushover("Rolläden im Erdgeschoss werden geschlossen! Aktuelle Sönnenhöhe " + Elevation.state)
+
+end
+*/
+
+/*
+rule "Cron_DEV"
+when
+   Time cron  "0/30 * * * * ?"
+then
+	//sendNotification("odinsraben@t-online.de", "test" + EGWohnzimmerRolladenTerrasse.state)
+	//pushover("Pushover Test: " + EGWohnzimmerRolladenTerrasse.state)
+	pushover("aWhsxof61iih1ai91qT5fXEpbEfLne","uKKYc7uJY8RACu5SympPH9uuKNwaDY","SystemRules:Ferien " + EGWohnzimmerRolladenTerrasse.state,"Virus")
+	//sendTelegram("MyopenHABbot", "Test")
+end
+*/
+
+/* 
+rule "Cron_DEV"
+when
+   Time cron  "0/30 * * * * ?"
+then
+		if (MOB001_WLAN_Olli.state == "Anwesend"){
+      		logInfo("PraesenzRules:", "Olli ist Zuhause")
+      		MOBOlli.postUpdate(ON)
+      	}
+      	else {
+      		logInfo("PraesenzRules:", "Olli ist nicht Zuhause")
+      		MOBOlli.postUpdate(OFF)	
+      	}
+end
+*/
+
+
+
+/*    
+rule "Urlaubsmodus / Tür-Fensterkontakte"
+when
+	Item EGEingangHaustuersensor changed from CLOSED to OPEN or
+	Item EGWohnzimmerTuersensor changed from CLOSED to OPEN or
+	Item GarageTorsensor changed from CLOSED to OPEN or
+	Item EGKuecheFenstersensor changed from CLOSED to OPEN
+then
+	if(AutoHoliday.state == ON){
+	gErdgeschossTuersensoren?.allMembers.filter(s | s.state == OPEN).forEach(contact | conOpened = conOpened + contact.name)
+	var String sensorState = transform("MAP","Sensoren.map",conOpened.toString)
+	logInfo("UrlaubRules:Kontakte Erdgeschoss",""  + sensorState + " wurde geöffnet")
+	//executeCommandLine ("/usr/local/bin/yowsup-cli@@demos@@-c@@/opt/yowsup/yowsup.config@@-s@@4916090488979-1440832510@g.us@@\"Tür-Fensterkontakt " + sensorState + " wurde geöffnet\"@@-M")
+	var String zonk = "/usr/local/bin/yowsup-cli@@demos@@-c@@/opt/yowsup/yowsup.config@@-s@@4916090488979-1440832510@g.us@@\"Tür-Fensterkontakt " + sensorState + " wurde geöffnet\"@@-M" 
+	logInfo("Befehl:   "  + zonk )
+	//executeCommandLine (zonk)
+	conOpened = ""
+	}
+end
+*/
+
+/*
+rule "Debug Test"
+when
+        Item Debug_Switch received update ON
+then
+
+	
+  		logInfo("Thrudvang.Testing", "---------------------------------------")
+        logInfo("Thrudvang.Testing:WhatsApp", "--WhatsApp--")
+        logInfo("Thrudvang.Testing:WhatsApp", "Sende Testnachricht")
+		var String sensorState = transform("MAP","Kontakt.map",GarageTorsensor.state.toString)
+	    //sendMail("o.kretzschmar@t-online.de", "Garagentor ist " + sensorState, "Garagentor ist " + sensorState)
+	    //executeCommandLine ("/etc/openhab/test.sh")
+		executeCommandLine ("/opt/yowsup/yowsup-cli@@demos@@-c@@/opt/yowsup/yowsup.config@@-s@@4916090488979-1440832510@g.us@@\"Garagentor ist " + sensorState + "\"")
+		logInfo("Debug_Switch", "WhatsApp Message send!")
+		logInfo("Thrudvang.Testing", "---------------------------------------")
+end
+ 
+
+/*
+rule "Debug Test"
+when
+        Item Debug_Switch received update ON
+then
+
+	
+  		logDebug("Rules", "Jahreszeit: " + Jahreszeit.state)
+		logDebug("Rules", "Sonnenuntergang_Event_After30_back: " + Sonnenuntergang_Event_After30_back.state)
+		logDebug("Rules", "Sonnenuntergang_Event_back: " + Sonnenuntergang_Event_back.state)
+end
+*/

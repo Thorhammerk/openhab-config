@@ -1,0 +1,132 @@
+val String filename = "praesenz.rules"
+
+rule "Jemand ist zuhause"
+	when
+  		Item gPraesenz changed or 
+  		System started
+	then
+		if (MOBOlli.state == ON || MOBOlli_IFTTT.state == ON || 
+			MOBSteffi.state == ON || MOBSteffi_IFTTT.state == ON){
+			Praesenzerkennung.postUpdate("Jemand ist zuhause")
+			logInfo(filename, "Jemand ist zuhause")
+		}
+		else {
+      		logInfo(filename, "Alle unterwegs")
+      		Praesenzerkennung.postUpdate("Alle unterwegs")
+		}
+		if (gPraesenz.state == ON && OutCamMotionDetection.state == OFF){
+			gSysCamera?.members.forEach(camera|
+            camera.sendCommand(OFF))
+			logInfo(filename, "Kamera Bewegungsmelder deaktiviert")
+			//pushover("Kamera Bewegungsmelder wurden deaktiviert")
+		}
+		if (gPraesenz.state == OFF){
+			gSysCamera?.members.forEach(camera|
+            camera.sendCommand(ON)
+            )
+			logInfo(filename, "Kamera Bewegungsmelder aktiviert")
+			//pushover("Kamera Bewegungsmelder wurden aktiviert")
+		}
+end
+
+
+rule "Steffi Presence Update"
+   when
+		Item MOBSteffi_WLAN changed or
+		Item MOBSteffi_IFTTT changed or
+		System started
+   then
+      	if (MOBSteffi_WLAN.state == "Anwesend" || MOBSteffi_IFTTT.state == ON){
+      		logInfo(filename, "Steffi ist Zuhause")
+      		MOBSteffi.postUpdate(ON)
+      	}
+      	else {
+      		logInfo("PraesenzRules:", "Steffi ist nicht Zuhause")
+      		MOBSteffi.postUpdate(OFF)	
+      	}
+end
+
+
+rule "Olli Presence Update"
+   when
+		Item MOBOlli_WLAN changed or
+		Item MOBOlli_IFTTT changed or
+		System started
+   then
+		if (MOBOlli_WLAN.state == "Anwesend" || MOBOlli_IFTTT.state == ON ){
+      		logInfo(filename, "Olli ist Zuhause")
+      		MOBOlli.postUpdate(ON)
+      	}
+      	else {
+      		logInfo(filename, "Olli ist nicht Zuhause")
+      		MOBOlli.postUpdate(OFF)	
+      	}
+end
+
+
+rule "Aussenkameras Bewegungsmelder aktivieren/deaktivieren"
+when
+	Item OutCamMotionDetection changed
+then
+	if (OutCamMotionDetection.state == OFF){
+			gSysOutdoorCamera?.members.forEach(camera|
+            camera.sendCommand(OFF)
+            )
+			logInfo(filename, "Aussenkameras Bewegungsmelder deaktiviert")
+			//pushover("Innenkameras Bewegungsmelder wurden deaktiviert")
+		}
+	if (OutCamMotionDetection.state == ON){
+			gSysOutdoorCamera?.members.forEach(camera|
+            camera.sendCommand(ON)
+            )
+			logInfo(filename, "Aussenkameras Bewegungsmelder aktiviert")
+			//pushover("Aussenkameras Bewegungsmelder wurden aktiviert")
+		}	
+end
+
+
+/* 
+rule "Innenkameras Bewegungsmelder aktivieren/deaktivieren"
+when
+	Item InCamMotionDetection changed
+then
+	if (InCamMotionDetection.state == OFF){
+			gSysIndoorCamera?.members.forEach(camera|
+            camera.sendCommand(OFF)
+            )
+			logInfo("PraesenzRules:", "Innenkameras Bewegungsmelder deaktiviert")
+			//pushover("Innenkameras Bewegungsmelder wurden deaktiviert")
+		}
+	if (InCamMotionDetection.state == ON){
+			gSysIndoorCamera?.members.forEach(camera|
+            camera.sendCommand(ON)
+            )
+			logInfo("PraesenzRules:", "Innenkameras Bewegungsmelder aktiviert")
+			//pushover("Aussenkameras Bewegungsmelder wurden aktiviert")
+		}	
+end
+*/
+
+
+/*
+rule "Innenkameras Bewegungsmelder aktivieren/deaktivieren"
+when
+	Item gPraesenz changed or
+	Item CamMotionDetection changed
+then
+	if (gPraesenz.state == ON && CamMotionDetection.state == OFF){
+			gSysIndoorCamera?.members.forEach(camera|
+            camera.sendCommand(OFF)
+            )
+			logInfo("PraesenzRules:", "Innenkameras Bewegungsmelder deaktiviert")
+			//pushover("Innenkameras Bewegungsmelder wurden deaktiviert")
+		}
+	if (gPraesenz.state == OFF || CamMotionDetection.state == ON){
+			gSysIndoorCamera?.members.forEach(camera|
+            camera.sendCommand(ON)
+            )
+			logInfo("PraesenzRules:", "Aussenkameras Bewegungsmelder aktiviert")
+			//pushover("Aussenkameras Bewegungsmelder wurden aktiviert")
+		}	
+end
+*/

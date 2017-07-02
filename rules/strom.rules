@@ -1,0 +1,48 @@
+import org.joda.time.DateTime
+
+val String filename = "strom.rules"
+
+var DateTime 	letzteAblesungDatum = parse("2017-03-21")
+var Number		letzteAblesungWert = 561069
+var Number 		letzteAblesungBatterieWechsel = 123456
+
+rule "Letzter täglicher Stromverbrauch"
+when
+   		Time cron "0 59 23 * * ?"
+then
+	var Number letzterTagesverbrauch = (OGStrom_Zaehler.state as Number) - (OGStrom_Zaehler.historicState(now.withTimeAtStartOfDay).state as Number)
+	if(OGStrom_Letzter_Tagesverbrauch.state != letzterTagesverbrauch)
+	{
+		OGStrom_Letzter_Tagesverbrauch.postUpdate(letzterTagesverbrauch /1000)
+	}
+end
+
+
+rule "Stromverbrauch"
+when
+	Item OGStrom_Zaehler received update
+then
+
+	//Gesamtzählerstand (HT/NT)
+	OGStrom_Zaehler_Gesamt.postUpdate(OGStrom_Zaehler.state as Number /1000 + letzteAblesungWert)
+	//logInfo(filename, "Update Gesamtzählerstand alt")
+	
+	//Gesamtzählerstand (HT/NT)
+	OGStrom_Zaehlerstand.postUpdate(OGStrom_Referenz_Zaehlerstand.state as Number  + (OGStrom_Zaehler.state as Number /1000) + letzteAblesungWert)
+	//logInfo(filename, "Update Gesamtzählerstand")
+	
+	// Verbrauch seit letzer Ablesung
+	OGStrom_Verbrauch_Seit_Letzter_Ablesung.postUpdate(OGStrom_Zaehlerstand.state as Number - letzteAblesungWert)
+	//logInfo(filename, "Update Verbrauch seit letzter Ablesung")
+	
+	// aktueller Verbrauch in KWh
+	OGstrom_Aktueller_Verbrauch_Kw.postUpdate(OGStrom_Aktueller_Verbrauch_W.state as Number / 1000)	
+	//logInfo(filename, "Update aktueller Verbrauch in KWh")
+	
+	//Zählerüberlauf
+	if ((OGStrom_Zaehler.state as Number + 0.001) < (OGStrom_Zaehlerspeicher.state as Number)) {
+		OGStrom_Referenz_Zaehlerstand.postUpdate ((OGStrom_Referenz_Zaehlerstand.state as Number) + (838.8607 /1000))
+		logInfo(filename, "Zählerüberlauf erkannt, update Refferenzzählerstand")
+	} 
+	OGStrom_Zaehlerspeicher.postUpdate(OGStrom_Zaehler.state as Number)
+end

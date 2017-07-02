@@ -1,0 +1,134 @@
+val String filename = "schalter.rules"
+
+var Timer OGTreppenhaustimer = null
+var Timer EGFlurTimer = null
+var Timer OnTime = null
+
+
+/* -------------  Garage öffnen / schliessen --------------------
+*/
+rule "Garagentor auf / zu"
+when
+    Item GarageSchalterTor received command       
+then
+		if(receivedCommand==ON) {
+		  	if(OnTime == null) {
+        		// first ON command, so create a timer to turn the Switch off again
+	        	OnTime = createTimer(now.plusSeconds(3))[|
+				GarageSchalterTor.sendCommand(OFF)
+	        	OnTime.cancel
+	        	OnTime = null
+	        	]
+				logInfo(filename, "Garagentor auf/zu wurde ausgeführt")
+				pushover("Garagentor auf/zu wurde ausgeführt")
+    		}
+    	}
+end
+
+/* -------------  Türklingel --------------------
+*/
+
+rule "Türklingel (EG)"
+when
+        Item EGKlingelsensorState changed from OFF to ON
+then
+        logInfo(filename, "Es klingelt (EG)")
+        pushover('Es klingelt (EG)!')
+        //sendTelegramPhoto("bot2", "http://192.168.1.101:88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=operator&pwd=abcd1234", "Türklingel (EG)!")
+        //Lautstärke setzen
+        gSonosDoorBellVolume?.members.forEach[sonosV |
+                logInfo(filename, "Setze Notify Lautstärke auf \"50\" für Sonos Member \"" + sonosV.name + "\"")
+                sonosV.sendCommand(50 as Number)
+        ]
+
+        //Sende Klingelton
+        gSonosDoorBellNotificationSound?.members.forEach[sonosS |
+                logInfo(filename, "Sende Klingelton \"http://192.168.1.66:8080/static/ding-dong3.mp3\" für Sonos Member \"" + sonosS.name + "\"")
+                sonosS.sendCommand("http://192.168.1.66:8080/static/ding-dong3.mp3")
+        ]
+end
+
+
+/* -------------  EG Küche / 2fach-Wandtaster HM-PB-2-WM55-2 --------------------
+*/
+
+rule "Rolladen Küche hoch"
+when
+    Item EGKuecheRolladenSchalterUP_1 changed from OFF to ON
+then
+		logInfo(filename, "Status EGKuecheRolladenSchalterUP_1 {}", EGKuecheRolladenSchalterUP_1.state)
+			if (EGKuecheRolladenFenster.state > 0){
+				logInfo(filename, "Wandtaster Küche: Rolladen hoch")
+				EGKuecheRolladenFenster.sendCommand(UP)
+			}
+end
+
+rule "Rolladen Küche runter"
+when
+    Item EGKuecheRolladenSchalterDOWN_1 changed from OFF to ON 
+then
+		logInfo(filename, "Status EGKuecheRolladenSchalterDOWN_1 {}", EGKuecheRolladenSchalterDOWN_1.state)
+			if (EGKuecheRolladenFenster.state < 100){
+				logInfo(filename, "Wandtaster Küche: Rolladen runter")
+				EGKuecheRolladenFenster.sendCommand(DOWN)
+			}
+end
+
+
+rule "Rolladen Küche stop"
+when
+    Item EGKuecheRolladenSchalterUP_2 changed from OFF to ON or
+    Item EGKuecheRolladenSchalterDOWN_2 changed from OFF to ON
+     
+then
+		logInfo(filename, "Wandtaster Küche: Rolladen stop")
+		EGKuecheRolladenFenster.sendCommand(STOP)
+end
+
+/* -------------  EG Schlafzimmer / 2fach-Wandtaster HM-PB-2-WM55-2 --------------------
+*/
+
+rule "Rolladen Schlaf- und Kinderzimmer hoch"
+when
+    Item EGSchlafzimmerRolladenSchalterUP_1 changed from OFF to ON
+then
+		logInfo(filename, "Status EGSchlafzimmerRolladenSchalterUP_1 {}", EGSchlafzimmerRolladenSchalterUP_1.state)
+			if (EGSchlafzimmerRolladenTuer.state > 0 || EGSchlafzimmerRolladenTerrasse.state > 0 ||
+				EGKinderzimmerRolladenLinks.state > 0 || EGKinderzimmerRolladenRechts.state > 0){
+				logInfo(filename, "Wandtaster Schlafzimmer: Rolladen hoch")
+				EGSchlafzimmerRolladenTuer.sendCommand(UP)
+				EGSchlafzimmerRolladenTerrasse.sendCommand(UP)
+				EGKinderzimmerRolladenLinks.sendCommand(UP)
+				EGKinderzimmerRolladenRechts.sendCommand(UP)
+			}
+end
+
+rule "Rolladen Schlaf- und Kinderzimmer runter"
+when
+    Item EGSchlafzimmerRolladenSchalterDOWN_1 changed from OFF to ON
+then
+		logInfo(filename, "Status EGSchlafzimmerRolladenSchalterDOWN_1 {}", EGSchlafzimmerRolladenSchalterDOWN_1.state)
+			if (EGSchlafzimmerRolladenTuer.state < 100 || EGSchlafzimmerRolladenTerrasse.state < 100 ||
+				EGKinderzimmerRolladenLinks.state < 100 || EGKinderzimmerRolladenRechts.state < 100){
+				logInfo(filename, "Wandtaster Schlafzimmer: Rolladen runter")
+				EGSchlafzimmerRolladenTuer.sendCommand(DOWN)
+				EGSchlafzimmerRolladenTerrasse.sendCommand(DOWN)
+				EGKinderzimmerRolladenLinks.sendCommand(DOWN)
+				EGKinderzimmerRolladenRechts.sendCommand(DOWN)	
+			}
+end
+
+
+rule "Rolladen Schlaf- und Kinderzimmer stop"
+when
+    Item EGSchlafzimmerRolladenSchalterUP_2 changed from OFF to ON or
+    Item EGSchlafzimmerRolladenSchalterDOWN_2 changed from OFF to ON
+     
+then
+		logInfo(filename, "Wandtaster Schlafzimmer: Rolladen stop")
+		EGSchlafzimmerRolladenTuer.sendCommand(STOP)
+		EGSchlafzimmerRolladenTerrasse.sendCommand(STOP)
+		EGKinderzimmerRolladenLinks.sendCommand(STOP)
+		EGKinderzimmerRolladenRechts.sendCommand(STOP)
+	
+end

@@ -1,0 +1,37 @@
+val String filename = "scenes.rules"
+
+rule "Wohnzimmer - Hue Scene"
+when
+ 	Item EGWohnzimmer_Scene_Lighting received update
+then
+ 	if(EGWohnzimmer_Scene_Lighting.state == 0){
+		logInfo(filename, "Scene Normal gewählt")
+			EGWohnzimmerColorLCrechts.sendCommand("70.6868131868131825967793702147901058197021484375,20,100");
+			EGWohnzimmerColorLClinks.sendCommand("70.6868131868131825967793702147901058197021484375,20,100");
+	}
+
+	if(EGWohnzimmer_Scene_Lighting.state == 1){
+		logInfo(filename, "Scene Nordlichter gewählt")
+			EGWohnzimmerColorLCrechts.sendCommand("201.521978021978014794513001106679439544677734375,100,100");
+			EGWohnzimmerColorLClinks.sendCommand("223.423076923076934008349780924618244171142578125,100,100"); 
+	}
+ 	
+ 	if(EGWohnzimmer_Scene_Lighting.state == 2){
+	    logInfo(filename, "Scene Farbenspiel gewählt")
+   			var Number changeCounter //Anzahl der Farbänderungen 
+ 			changeCounter=0
+ 				while(changeCounter<100 && EGWohnzimmer_Scene_Lighting.state == 2 && gEGWohnzimmerLivingColors.state == ON) {
+        		changeCounter=changeCounter+1
+    			gEGWohnzimmerLivingColors?.members.forEach(light|light.sendCommand((((Math::random * 360).intValue)) + "," + (((Math::random * 100).intValue)) + "," + (((Math::random * 100).intValue))))  
+      			Thread::sleep(30000) //30 Sekunden warten
+				}
+		EGWohnzimmerColorLCrechts.sendCommand("201.521978021978014794513001106679439544677734375,100,100");
+		EGWohnzimmerColorLClinks.sendCommand("223.423076923076934008349780924618244171142578125,100,100"); 
+	}
+	
+	if(EGWohnzimmer_Scene_Lighting.state == 3){
+		logInfo(filename, "Scene Sonnenuntergang gewählt")
+			EGWohnzimmerColorLCrechts.sendCommand("20.879120879120879550328027107752859592437744140625,86,100");
+			EGWohnzimmerColorLClinks.sendCommand("20.879120879120879550328027107752859592437744140625,86,100");
+	}
+end

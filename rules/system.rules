@@ -1,0 +1,221 @@
+//var String conOpened = ""
+val String filename = "system.rules"
+var String BatteryStateMsg = null
+
+/* -------------  SYSTEM RULE --------------------
+ */
+
+//-------------  Ferien und Feiertage --------------------
+
+rule "Ferien"
+when
+   Item NRWHolidayICAL changed or 
+   Item PublicHolidaysICAL changed or
+   Item NRWHolidayICAL received update or
+   Item PublicHolidaysICAL received update
+then
+   //Prüfen ob ein Feiertag ist
+   if (PublicHolidaysICAL.state != "false" && PublicHolidaysICAL.state != "Uninitialized"){
+      NRWHoliday.postUpdate(ON)
+      NRWHolidayName.postUpdate(PublicHolidaysICAL.state)
+      logInfo(filename, "PublicHolidaysICAL changed: Updated Public Holiday Status: " + NRWHoliday.state + " (" + NRWHolidayName.state + ")")
+   }
+   // Prüfen ob Ferien sind
+   else if (NRWHolidayICAL.state != "false" && NRWHolidayICAL.state != "Uninitialized"){
+      NRWHoliday.postUpdate(ON)
+      NRWHolidayName.postUpdate(NRWHolidayICAL.state)
+      logInfo(filename, "NRWHolidayICAL changed: Updated Holiday Status: " + NRWHoliday.state + " (" + NRWHolidayName.state + ")")
+   } else {
+      NRWHoliday.postUpdate (OFF)
+      NRWHolidayName.postUpdate("false")
+      logInfo(filename, "Updated Holiday Status: " + NRWHoliday.state + " (false)")
+   }
+end
+
+
+/* -------------  Offene Tür- / Fensterkontakte im Erdgeschoss --------------------
+*/
+rule "Kontakte Erdgeschoss"
+when
+	Item gErdgeschossTuersensoren received update
+then
+	val EGnumOpened = gErdgeschossTuersensoren?.members.filter(contact | contact.state == OPEN).size
+    	//gErdgeschossTuersensoren?.allMembers.filter(s | s.state == OPEN).forEach(contact | conOpened = conOpened + contact.name + ", ")
+    	//logInfo(filename,""  + conOpened + " wurde geöffnet")
+	EGContactsCount.postUpdate(EGnumOpened)
+	//conOpened = ""
+end
+
+/* -------------  Offene Tür- / Fensterkontakte im Obergeschoss --------------------
+*/
+rule "Kontakte Obergeschoss"
+when
+	Item gObergeschossTuersensoren received update
+then
+	val OGnumOpened = gObergeschossTuersensoren.members.filter(contact | contact.state == OPEN).size
+	//logInfo(filename, "Offene Tür- / Fensterkontakte im Obergeschoss: " + numOpened + " ")
+	OGContactsCount.postUpdate(OGnumOpened)
+end
+
+/* -------------  Alle Tür- / Fensterkontakte geschlossen  --------------------
+*/
+
+rule "Alle Türen und Fenster geschlossen"
+when
+	Item gclosedContacts received update or
+   	System started
+then
+	if (gclosedContacts.state == 0){
+		closedContacts.postUpdate("geschlossen")
+		//logInfo(filename, "Türen und Fenster geschlossen")
+		}
+end
+
+/* -------------  Garage ist offen (länger als 15 Minuten zwischen 18:00 - 08:00) --------------------
+*/
+
+ rule "Garage ist länger als 15 Minuten geöffnet (18:00 - 08:00)"
+ 	when
+		Time cron "0 0/15 18-8 * * ?"
+	then
+		if (GarageTorsensor.state == OFF && !GarageTorsensor.changedSince(now.minusMinutes(15))){
+			var String sensorState = transform("MAP","contact.map",GarageTorsensor.state.toString)
+	        logInfo(filename, "Garage ist länger als 15 Minuten geöffnet")
+	        //sendTelegram("MyopenHABbot","Garagentor ist " + sensorState)
+	        pushover("Garagentor ist " + sensorState)
+		} else {
+		logInfo(filename, "Garagentor ist geschlossen")
+		}
+ end
+
+
+/* -------------  Wartung --------------------
+*/
+
+//-------------  Batterie Check --------------------
+
+rule "Wartung: Batterie Check"
+when
+	Time cron "10 45 9,17 * * ?" or
+	Item Wartungs_Trigger received update ON
+then
+	logInfo(filename, "Wartung - Batterie Check")
+	gSysBattery.members.forEach(battery | {
+			//logInfo(filename, "Wartung - Batterie " + battery.label + " Type(" + battery.type + "): " + battery.state)
+			if (battery.type == "Number" && battery.state <= 2.5) { 
+					logWarn(filename, "Wartung - Batterie schwach: " + battery.label)
+					pushover("Warnung. Gerät mit schwacher Batterie: " + battery.label)
+				}
+			else if (battery.type == "Switch") {
+				if (battery.state == ON) {
+					logWarn(filename, "Wartung - Batterie schwach: " + battery.label)
+					pushover("Warnung. Gerät mit schwacher Batterie: " + battery.label)
+				}
+				if (battery.state == NULL) {
+					logWarn(filename, "Wartung - Batterie unbekannt (NULL): " + battery.label)
+					pushover("Warnung. Gerät mit leerer Batterie: " + battery.label)
+				}
+			}
+			else {
+				logError(filename, "Wartung - Batterietyp unbekannt: " + battery.label)
+				pushover("Warnung. Batterietest, unbekannter Fehler: " + battery.label)
+			}
+		}
+	)
+end
+
+//-------------  Fehlerhafte Devices --------------------
+
+rule "Wartung: Fehler Check"
+when
+	Time cron "0 45 9,17 * * ?" or
+	Item Wartungs_Trigger received update ON
+then
+	logInfo(filename, "Wartung - Fehler Check")
+	gSysError?.members.forEach[device | 
+			if (device.state == "NO_FAULT" || device.state == "NO_ERROR") {
+				//logInfo(filename, "Wartung - Fehler Check OK: " + device.label + ": " + device.state)
+			} else {
+				logWarn(filename, "Wartung - Fehler Check FEHLER: " + device.label + ": " + device.state)
+				pushover("Warnung. Gerät: " + device.label + " (Status " + device.state + ")")
+			}
+	]
+end
+
+//-------------  Unreachable Devices --------------------
+
+rule "Wartung: Unreachable Check"
+when
+	Time cron "5 45 9,17 * * ?" or
+	Item Wartungs_Trigger received update ON
+then
+	logInfo(filename, "Wartung - Unreachable Check")
+	gSysUnreach?.members.forEach[device | 
+	    	if (device.state == OFF) {
+				//logInfo(filename, "Wartung - Unreachable Check OK: " + device.label)
+	    	} else {
+	    		logWarn(filename, "Wartung - Unreachable Check FEHLER: " + device.label)
+	    		pushover("Warnung. Nicht erreichbares Gerät: " + device.label)
+			}	
+		]
+end
+
+
+/* -------------  Internet Speedtest --------------------
+*/
+/*
+rule "Speedtest init"
+when
+    System started
+then {
+    if (SpeedtestSummary.state == NULL || SpeedtestSummary.state == "") SpeedtestSummary.postUpdate("(unbekannt)")
+}
+end
+
+
+rule "Speedtest"
+when
+    //Time cron "0 0 5 * * ?" or
+    //Time cron "0 0 13 * * ?"
+    Time cron "0 0 0/2 * * ?" or
+    Item SpeedtestRerun received command ON
+then {
+    logInfo("RULE", "--> speedtest executed...")
+    SpeedtestRunning.postUpdate("Messung läuft...")
+
+    // update timestamp for last execution
+    SpeedtestResultDate.postUpdate(new DateTimeType())
+
+    // execute the script, you may have to change the path depending on your system
+    var String speedtestCliOutput = executeCommandLine("/usr/bin/speedtest-cli@@--simple", 120*1000)
+
+    // for debugging:
+    //var String speedtestCliOutput = "Ping: 43.32 ms\nDownload: 21.64 Mbit/s\nUpload: 4.27 Mbit/s"
+    //logInfo("RULE", "--> speedtest output:\n" + speedtestCliOutput + "\n\n")
+
+    SpeedtestRunning.postUpdate("Datenauswertung...")
+
+    // starts off with a fairly simple error check, should be enough to catch all problems I can think of
+    if (speedtestCliOutput.startsWith("Ping") && speedtestCliOutput.endsWith("Mbit/s")) {       
+        var String[] results = speedtestCliOutput.split("\\r?\\n")
+        var float ping = new java.lang.Float(results.get(0).split(" ").get(1))
+        var float down = new java.lang.Float(results.get(1).split(" ").get(1))
+        var float up   = new java.lang.Float(results.get(2).split(" ").get(1))
+        SpeedtestResultPing.postUpdate(ping)
+        SpeedtestResultDown.postUpdate(down)
+        SpeedtestResultUp.postUpdate(up)
+        SpeedtestSummary.postUpdate(String::format("ᐁ  %.1f Mbit/s  ᐃ %.1f Mbit/s (%.0f ms)", down, up, ping))
+        SpeedtestRunning.postUpdate("-")
+        logInfo("RULE", "--> speedtest finished.")
+    } else {
+        SpeedtestResultPing.postUpdate(0)
+        SpeedtestResultDown.postUpdate(0)
+        SpeedtestResultUp.postUpdate(0)
+        SpeedtestSummary.postUpdate("(unbekannt)")
+        SpeedtestRunning.postUpdate("Fehler bei der Ausführung")
+        logError("RULE", "--> speedtest failed. Output:\n" + speedtestCliOutput + "\n\n")
+    }
+    SpeedtestRerun.postUpdate(OFF)
+}
+end
+*/

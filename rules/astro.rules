@@ -1,0 +1,99 @@
+//var Timer timer = null
+val String filename = "astro.rules"
+
+/* -------------  TAG und NACHT --------------------
+*/
+
+rule "Tag und Nacht"
+when
+    Item Elevation changed or System started
+then
+      if (Elevation.state > 0) {
+        if (IsDay.state==OFF || IsDay.state==NULL) {
+            logInfo(filename, "Sonnenstand > 0 Grad - Es ist Tag")
+              IsTwilight.sendCommand(OFF)
+              IsDay.sendCommand(ON)
+              IsNight.sendCommand(OFF)        
+        }
+      }
+	  if (Elevation.state <= 0 && Elevation.state >= -4) {
+        if (IsDay.state==ON || IsDay.state==NULL){
+            logInfo(filename, "Sonnenstand ist zwischen 0 und -5 Grad - Es ist Dämmerung")
+        	   	IsTwilight.sendCommand(ON)
+              	IsDay.sendCommand(OFF)
+              	IsNight.sendCommand(OFF)
+         }            
+      }
+      if (Elevation.state < -4) {     
+        if (IsTwilight.state==ON || IsTwilight.state==NULL) {
+            logInfo(filename, "Sonnenstand < -4 Grad - Es ist Nacht")
+              IsTwilight.sendCommand(OFF)
+              IsDay.sendCommand(OFF)
+              IsNight.sendCommand(ON)      
+          }
+      }
+end
+
+
+/* -------------  SONNENAUFGANG --------------------
+	enthält alle Regeln für das Event Sonnenaufgang
+ */
+//-------------  LICHT --------------------
+
+//-------------  ROLLÄDEN --------------------	
+
+rule "Rolläden Erdgeschoss rauf (Astro)"
+when
+	Item IsDay changed from OFF to ON
+then
+	if ((Jahreszeit.state=="SPRING" || Jahreszeit.state=="SUMMER") && AutoHoliday.state == OFF){
+		logInfo(filename, "Rolläden Erdgeschoss rauf")
+		EGWohnzimmerRolladenTerrasse.sendCommand(UP)
+		EGWohnzimmerRolladenSofa.sendCommand(UP)
+		EGWohnzimmerRolladenTuer.sendCommand(UP)
+		EGBadezimmerRolladen.sendCommand(UP)
+	}
+end
+
+
+/* -------------  SONNENUNTERGANG --------------------
+	enthält alle Regeln für das Event Sonnenuntergang
+ */
+ 
+//-------------  LICHT --------------------
+
+  
+rule "Licht Vorgarten an"
+    when
+		Channel 'astro:sun:home:set#event' triggered START
+    then
+        if (Jahreszeit.state=="AUTUMN" || Jahreszeit.state=="WINTER"){
+        	EGEingangLichtVorgarten.sendCommand(ON)
+        	logInfo(filename, "Licht Vorgarten an")
+        }
+end
+
+
+//-------------  ROLLÄDEN --------------------	
+
+rule "Rolläden Erdgeschoss runter (Astro)" 
+when
+        Item IsNight changed from OFF to ON
+
+then
+	   	//pushover("Rolläden im Erdgeschoss werden geschlossen! Aktuelle Sönnenhöhe " + Elevation.state)
+	   	logInfo(filename, "Rolläden Erdgeschoss runter")
+    	if (EGSchlafzimmerTuersensor.state == CLOSED){
+			EGSchlafzimmerRolladenTuer.sendCommand(DOWN)
+		}
+		//if (EGWohnzimmerTuersensor.state == CLOSED){
+		//	EGWohnzimmerRolladenTuer.sendCommand(DOWN)
+		//}
+    	EGWohnzimmerRolladenTerrasse.sendCommand(DOWN)
+		EGWohnzimmerRolladenSofa.sendCommand(DOWN)
+		EGSchlafzimmerRolladenTerrasse.sendCommand(DOWN)
+		EGKinderzimmerRolladenLinks.sendCommand(DOWN)
+		EGKinderzimmerRolladenRechts.sendCommand(DOWN)
+		EGKuecheRolladenFenster.sendCommand(DOWN)
+		EGBadezimmerRolladen.sendCommand(DOWN)
+end

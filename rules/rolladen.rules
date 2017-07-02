@@ -1,0 +1,298 @@
+//var Map shutterPreviousState = null
+
+val String filename = "rolladen.rules"
+
+var Boolean EGKuecheRollladenFensterZu = false
+var Boolean EGWohnzimmerTuersensorZu = false
+var Boolean EGSchlafzimmerTuersensorZu = false
+var Boolean EGBadezimmerFenstersensorZu = false
+var Boolean EGKinderzimmerFenstersensorZu = false
+
+
+rule "Rolladensteuerung Auto / Manuell"
+when
+	Item ShutterControll changed 
+	
+then
+	if(ShutterControll.state == ON){
+		logInfo(filename, "Rolladensteuerung automatisch")
+		//pushover("Rolladensteuerung automatisch")
+	}
+	if(ShutterControll.state == OFF){
+		logInfo(filename, "Rolladensteuerung manuell")
+		//pushover("Rolladensteuerung manuell")
+	}
+end
+
+
+//-------------  ROLLÄDEN öffnen (Hausrückseite)--------------------	
+
+rule "Rolläden Erdgeschoss (hinten) rauf Maerz-September"
+when
+        Time cron "0 0 7 ? 3-9 MON-FRI"
+
+then
+
+	if ((NRWHoliday.state==OFF && AutoHoliday.state==OFF) && ShutterControll.state==ON) {
+		EGWohnzimmerRolladenTuer.sendCommand(UP)
+		EGWohnzimmerRolladenTerrasse.sendCommand(UP)
+		EGWohnzimmerRolladenSofa.sendCommand(UP)
+		EGSchlafzimmerRolladenTuer.sendCommand(UP)
+		EGSchlafzimmerRolladenTerrasse.sendCommand(UP)
+		EGBadezimmerRolladen.sendCommand(UP)
+	}
+end
+
+rule "Rolläden Erdgeschoss (hinten) rauf Oktober-Februar"
+when
+
+        Time cron "0 25 7 ? 10-2 MON-FRI"
+
+then
+
+	if ((NRWHoliday.state==OFF && AutoHoliday.state==OFF) && ShutterControll.state==ON) {
+		EGWohnzimmerRolladenTuer.sendCommand(UP)
+		EGWohnzimmerRolladenTerrasse.sendCommand(UP)
+		EGWohnzimmerRolladenSofa.sendCommand(UP)
+		EGSchlafzimmerRolladenTuer.sendCommand(UP)
+		EGSchlafzimmerRolladenTerrasse.sendCommand(UP)
+		EGBadezimmerRolladen.sendCommand(UP)
+	}
+end
+
+rule "Rolläden Erdgeschoss (hinten) rauf Wochenende"
+when
+
+        Time cron "0 30 8 ? * SAT-SUN"
+then
+
+	if ((NRWHoliday.state==OFF && AutoHoliday.state==OFF) && ShutterControll.state==ON) {
+		EGWohnzimmerRolladenTuer.sendCommand(UP)
+		EGWohnzimmerRolladenTerrasse.sendCommand(UP)
+		EGWohnzimmerRolladenSofa.sendCommand(UP)
+		EGSchlafzimmerRolladenTuer.sendCommand(UP)
+		EGSchlafzimmerRolladenTerrasse.sendCommand(UP)
+		EGBadezimmerRolladen.sendCommand(UP)
+	}
+end
+
+//-------------  ROLLÄDEN öffnen (Hausvorderseite)--------------------
+
+rule "Rolläden Erdgeschoss (vorne) rauf April-September"
+when
+        Time cron "0 0 8 ? 4-9 MON-FRI"
+
+then
+
+	if ((NRWHoliday.state==OFF && AutoHoliday.state==OFF) && ShutterControll.state==ON) {
+   		EGKinderzimmerRolladenLinks.sendCommand(UP)
+		EGKinderzimmerRolladenRechts.sendCommand(UP)
+		EGKuecheRolladenFenster.sendCommand(UP)
+	}
+end
+
+rule "Rolläden Erdgeschoss (vorne) rauf Oktober-Maerz"
+when
+
+        Time cron "0 0 8 ? 10-3 MON-FRI"
+
+then
+
+	if ((NRWHoliday.state==OFF && AutoHoliday.state==OFF) && ShutterControll.state==ON) {
+   		EGKinderzimmerRolladenLinks.sendCommand(UP)
+		EGKinderzimmerRolladenRechts.sendCommand(UP)
+		EGKuecheRolladenFenster.sendCommand(UP)
+	}
+end
+
+rule "Rolläden Erdgeschoss (vorne) rauf Wochenende"
+when
+
+        Time cron "0 30 8 ? * SAT-SUN"
+then
+
+	if ((NRWHoliday.state==OFF && AutoHoliday.state==OFF) && ShutterControll.state==ON) {
+   		EGKinderzimmerRolladenLinks.sendCommand(UP)
+		EGKinderzimmerRolladenRechts.sendCommand(UP)
+		EGKuecheRolladenFenster.sendCommand(UP)
+	}
+end
+
+
+rule "Rolläden Erdgeschoss rauf (Ferien)"
+when
+        Time cron "0 30 8 * * ?"
+
+then
+ 
+	if (ShutterControll.state==ON && (NRWHoliday.state==ON || AutoHoliday.state==ON)) {
+		gErdgeschossRolladen?.allMembers.forEach(rs|
+            rs.sendCommand(UP)
+            )		
+	}
+/*
+		EGWohnzimmerRolladenTuer.sendCommand(UP)
+		EGWohnzimmerRolladenTerrasse.sendCommand(UP)
+		EGWohnzimmerRolladenSofa.sendCommand(UP)
+		EGSchlafzimmerRolladenTuer.sendCommand(UP)
+		EGSchlafzimmerRolladenTerrasse.sendCommand(UP)
+		EGKinderzimmerRolladenLinks.sendCommand(UP)
+		EGKinderzimmerRolladenRechts.sendCommand(UP)
+		EGKuecheRolladenFenster.sendCommand(UP)
+		EGBadezimmerRolladen.sendCommand(UP)	
+*/
+end
+
+//-------------  ROLLÄDEN schliessen--------------------
+
+rule "Rolläden Erdgeschoss (cron) runter Mai-September"
+when
+        Time cron "0 00 23 * 5-9 ?"
+
+then
+
+	if (EGWohnzimmerTuersensor.state == CLOSED){
+      	logInfo(filename, "Rolläden Erdgeschoss schliessen")
+      	EGWohnzimmerRolladenTuer.sendCommand(DOWN)
+	}
+end
+
+rule "Rolläden Erdgeschoss (cron) runter Oktober-April"
+when
+
+        Time cron "0 15 21 * 10-4 ?"
+then
+
+	if (EGWohnzimmerTuersensor.state == CLOSED){
+      	logInfo(filename, "Rolläden Erdgeschoss schliessen")
+      	EGWohnzimmerRolladenTuer.sendCommand(DOWN)
+	}
+end
+
+
+rule "Rolläden Kinderzimmer (cron) runter"
+when
+        Time cron "0 0 20 * 3-9 ?"
+then
+
+      	logInfo(filename, "Rolläden Kinderzimmer schliessen")
+		EGKinderzimmerRolladenLinks.sendCommand(DOWN)
+		EGKinderzimmerRolladenRechts.sendCommand(DOWN)
+		EGSchlafzimmerRolladenTerrasse.sendCommand(DOWN)
+end
+
+
+/* -------------  FENSTER Öffnen --------------------
+*/
+
+//-------------  Küche EG --------------------	
+
+rule "Küche (öffnen)"
+when
+    Item EGKuecheFenstersensor changed from CLOSED to OPEN
+then
+    if (EGKuecheRolladenFenster.state == 100) {
+        EGKuecheRollladenFensterZu = true
+        EGKuecheRolladenFenster.sendCommand(65)
+    }
+end
+
+rule "Küche (schließen)"
+when
+    Item EGKuecheFenstersensor changed from OPEN to CLOSED
+then
+    if (EGKuecheRollladenFensterZu == true)	{
+        EGKuecheRollladenFensterZu = false
+        EGKuecheRolladenFenster.sendCommand(DOWN)
+    }
+end
+
+//-------------  Wohnzimmer EG --------------------	
+
+rule "Wohnzimmer (öffnen)"
+when
+		Item EGWohnzimmerTuersensor changed from CLOSED to OPEN
+then
+		if (EGWohnzimmerRolladenTuer.state == 100){
+			EGWohnzimmerTuersensorZu = true
+			EGWohnzimmerRolladenTuer.sendCommand(UP)
+		}
+end
+
+/* 
+rule "Wohnzimmer (schließen)"
+when
+		Item EGWohnzimmerTuersensor changed from OPEN to CLOSED
+then
+		if (EGWohnzimmerTuersensorZu == true){
+			EGWohnzimmerTuersensorZu = false
+			EGWohnzimmerRolladenTuer.sendCommand(DOWN)
+		}
+end
+*/
+
+//-------------  Schlafzimmer EG --------------------	
+
+rule "Schlafzimmer (öffnen)"
+when
+		Item EGSchlafzimmerTuersensor changed from CLOSED to OPEN
+then
+		if (EGSchlafzimmerRolladenTuer.state == 100) {
+			EGSchlafzimmerTuersensorZu = true
+			EGSchlafzimmerRolladenTuer.sendCommand(70)
+		}
+end
+
+rule "Schlafzimmer (schließen)"
+when
+		Item EGSchlafzimmerTuersensor changed from OPEN to CLOSED
+then
+		if (EGSchlafzimmerTuersensorZu == true) {
+			EGSchlafzimmerTuersensorZu = false
+			EGSchlafzimmerRolladenTuer.sendCommand(DOWN)
+		}
+end
+
+//-------------  Badezimmer EG --------------------	
+
+rule "Badezimmer (öffnen)"
+when
+		Item EGBadezimmerFenstersensor changed from CLOSED to OPEN
+then
+		if (EGBadezimmerRolladen.state == 100) {
+			EGBadezimmerFenstersensorZu = true
+			EGBadezimmerRolladen.sendCommand(55)
+		}
+end
+
+rule "Badezimmer (schließen)"
+when
+		Item EGBadezimmerFenstersensor changed from OPEN to CLOSED
+then
+		if (EGBadezimmerFenstersensorZu == true)	{
+			EGBadezimmerFenstersensorZu = false
+			EGBadezimmerRolladen.sendCommand(DOWN)
+		}
+end
+
+//-------------  Kinderzimmer EG --------------------	
+
+rule "Kinderzimmer rechts (öffnen)"
+when
+		Item EGKinderzimmerFenstersensor changed from CLOSED to OPEN
+then
+		if (EGKinderzimmerRolladenRechts.state == 100){
+			EGKinderzimmerFenstersensorZu = true
+			EGKinderzimmerRolladenRechts.sendCommand(55)
+		}
+end
+
+rule "Kinderzimmer rechts (schließen)"
+when
+		Item EGKinderzimmerFenstersensor changed from OPEN to CLOSED
+then
+		if (EGKinderzimmerFenstersensorZu == true){
+			EGKinderzimmerFenstersensorZu = false
+			EGKinderzimmerRolladenRechts.sendCommand(DOWN)
+		}
+end

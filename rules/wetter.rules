@@ -1,0 +1,23 @@
+/* 
+rule "Temperaturupdate Max. und Min."
+when
+        Item Uedorf_Temperatur changed or
+        Time cron "0 0 0 * * ?"
+then
+        val startOfDay = now.withTimeAtStartOfDay
+        if(Uedorf_Temperatur != null) {
+        Temp_Max_0.postUpdate(Uedorf_Temperatur.maximumSince(startOfDay).state)
+        Temp_Min_0.postUpdate(Uedorf_Temperatur.minimumSince(startOfDay).state)
+    }
+end
+*/
+
+rule "Wettervorhersage"
+when
+        Time cron "0 15 7 ? * MON-FRI"
+        or
+        Time cron "0 30 8 ? * SAT-SUN"
+then
+		pushover("Wettervorhersage für heute: " + fcttext_0.state)
+		//sendTelegram("MyopenHABbot","Wettervorhersage für heute: " + fcttext_0.state)
+end

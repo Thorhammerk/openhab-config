@@ -1,0 +1,73 @@
+var Timer OGTreppenhaustimer = null
+var Timer EGFlurTimer = null
+val String filename = "licht.rules"
+/* -------------  EG Flurlicht automatisch AUS --------------------
+*/
+
+rule "Licht im EG Flur"
+when
+	Item EGFlurLicht received update ON
+then
+	if(EGFlurTimer == null) {
+    	// first ON command, so create a timer to turn the Switch off again
+	       	EGFlurTimer = createTimer(now.plusSeconds(90)) [|
+				EGFlurLicht.sendCommand(OFF)
+	        	EGFlurTimer.cancel
+	        	EGFlurTimer = null
+	        	logInfo(filename, "Flurlicht wurde ausgeschaltet")
+	        	]
+    }
+    	
+end
+
+
+/* -------------  OG Treppenhauslicht automatisch AUS --------------------
+*/
+
+rule "Licht im Treppenhaus"
+when
+	Item OGTreppenhausLicht received update ON
+then
+	if(OGTreppenhaustimer == null) {
+    	// first ON command, so create a timer to turn the Switch off again
+	       	OGTreppenhaustimer = createTimer(now.plusSeconds(90)) [|
+				OGTreppenhausLicht.sendCommand(OFF)
+	        	OGTreppenhaustimer.cancel
+	        	OGTreppenhaustimer = null
+	        	logInfo(filename, "Licht im Treppenhaus wurde ausgeschaltet")
+	        	]
+    }
+    	
+end
+
+
+/* -------------  EG Nachtlicht (Wächter) --------------------
+*/
+
+rule "Nachtlicht (Wächter) aus"
+when
+	Item IsDay changed from OFF to ON
+then
+	EGFlurNachtLicht.sendCommand(OFF)
+end
+
+rule "Nachtlicht (Wächter) an"
+when
+	Item IsNight changed from OFF to ON
+then
+	EGFlurNachtLicht.sendCommand(ON)
+end
+
+
+/* -------------  Vorgarten Licht --------------------
+*/
+
+rule "Licht Vorgarten aus"
+	when
+        Time cron "0 15 21 * * ?"   // taeglich 21:15
+	then
+        if (Jahreszeit.state=="AUTUMN" || Jahreszeit.state=="WINTER"){
+            EGEingangLichtVorgarten.sendCommand(OFF)
+            logInfo(filename, "Licht Vorgarten aus")
+        }
+end

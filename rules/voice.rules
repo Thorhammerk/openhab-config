@@ -1,0 +1,124 @@
+
+rule "Voice control"
+when
+    Item VoiceCommand received command
+then
+    var String command = VoiceCommand.state.toString.toLowerCase
+    	logInfo("VoiceRules","VoiceCommand received "+command)
+    var State newState = null
+    // Status herausfinden, ansonsten togglen
+    if (command.contains("grad") || command.contains("prozent") || command.contains("dimme")) {
+        // Wert setzten=> neuer Status als Zahl extrahieren
+        var Pattern p = Pattern::compile(".* ([0-9]+) (grad|prozent).*")
+        var Matcher m = p.matcher(command)
+        if (m.matches()) {
+            newState = new StringType(m.group(1).trim())
+        }
+    }
+    else if (command.contains("aus")|| command.contains("ausschalten") || command.contains("beenden")) {
+        newState = OFF
+    } else if (command.contains("an") || command.contains("ein")|| command.contains("einschalten") || command.contains("starten")) {
+        newState = ON
+    } else if (command.contains("runterfahren") || command.contains("runter") || command.contains("ab") || command.contains("schließen")) {
+        newState = DOWN
+    } else if (command.contains("hochfahren") || command.contains("hoch") || command.contains("auf") || command.contains("öffnen")) {
+        newState = UP
+    }
+    // Raum herausfinden
+    var String room = null
+    var String roomItemPart = null
+    var String roomArticle="im"
+    var String floorLevel = null
+	if (command.contains("erdgeschoss") || command.contains("erdgeschoß")) {
+        floorLevel = "EG"
+    } else if (command.contains("obergeschoss") || command.contains("obergeschoß")) {
+        floorLevel = "OG"
+    }
+    if (command.contains("wohnzimmer")) {
+        room = "Wohnzimmer"
+        roomItemPart = "Wohnzimmer"
+    } else if (command.contains("schlafzimmer")) {
+        room = "Schlafzimmer"
+        roomItemPart = "Schlafzimmer"
+    } else if (command.contains("badezimmer") || command.contains("bad")) {
+        room = "Badezimmer"
+        roomItemPart = "Badezimmer"
+    } else if (command.contains("kinderzimmer")) {
+        room = "Kinderzimmer"
+        roomItemPart = "Kinderzimmer"
+    } else if (command.contains("küche")) {
+        room = "Kueche"
+        roomItemPart = "Kueche"
+    } else if (command.contains("flur")) {
+        room = "Flur"
+        roomItemPart = "Flur"
+    } else if (command.contains("eingang")) {
+        room = "Eingang"
+        roomItemPart = "Eingang"
+    } else if (command.contains("vorgarten")) {
+        room = "Eingang"
+        floorLevel = "EG"        
+        roomItemPart = "Eingang"
+    }
+     // Gewerk
+    var String itemType=null
+    var String itemSubType=""
+    var String reply=""
+    if (command.contains("licht")) {
+        itemType = "Licht"
+        if (room=="Schlafzimmer") {
+             itemSubType="_Roof"
+            } else if (room=="Wohnzimmer") {
+                if (command.contains("esstisch")) 
+                	itemSubType="Esstisch"
+            } else if (room=="Flur") {
+                itemSubType=""
+            } else if (room=="Eingang") {
+                if (command.contains("vorgarten")) 
+                	itemSubType="Vorgarten"
+            }
+        }
+     else if (command.contains("rolladen") || command.contains("jalousien")) {
+        itemType = "Rolladen"
+        if (newState instanceof StringType) {
+            itemType = "Shutter_Pos"
+        }
+        if (room=="Wohnzimmer") {
+            // Unterscheiden zwischen Tür/Fenster
+            if (command.contains("tür")) {
+                itemSubType = "Tuer"
+            } else if (command.contains("fenster")) {
+                itemSubType = "Terrasse"
+            } else if (command.contains("sofa")) {
+                itemSubType = "Sofa"
+            }
+        }
+        if (room=="Schlafzimmer") {
+            // Unterscheiden zwischen Tür/Fenster
+            if (command.contains("tür")) {
+                itemSubType = "Tuer"
+            } else if (command.contains("fenster")) {
+                itemSubType = "Terrasse"
+            }
+        }
+        if (room=="Badezimmer") {
+                itemSubType = ""
+        }
+        if (room=="Kueche") {
+            // Unterscheiden zwischen Tür/Fenster
+            if (command.contains("fenster")) {
+                itemSubType = "Fenster"
+        	}
+    	} else if (command.contains("temperatur")) {
+        	itemType = "Temperature"
+        	itemSubType = "_Target"
+        	reply = "Ok, Temperatur "+roomArticle+" "+room+" auf "+newState+" Grad gesetzt"
+    	}
+    }
+    if (floorLevel!=null && roomItemPart!=null && itemType!=null && newState!=null) {
+       	logInfo("VoiceRules", "sending "+newState+" to "+floorLevel+roomItemPart+itemType+itemSubType)
+        sendCommand(floorLevel+roomItemPart+itemType+itemSubType,newState.toString)
+    } else if (floorLevel==null || roomItemPart==null || itemType==null || newState==null){
+        logInfo("VoiceRules", "Kommando nicht vollständig")
+        }
+end
